@@ -46,3 +46,4 @@ console.log(response.choices[0].message?.content)
 //   messages:[{content:values.prompt,role:"user"}],
 //   model:values.prompt
 // })
+ 
