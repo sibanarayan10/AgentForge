@@ -10,7 +10,9 @@ export type UserMessage={
 
 export type AgentMessage={
     role:"agent",
-    content:string
+    content:string,
+    usage:TokenUsage,
+    stopReason:StopReason
 }
 export type Message=UserMessage| AgentMessage;
 
@@ -19,7 +21,7 @@ export interface StreamOption{
     model:string,
     system?:string
 }
-export type StreamEvent={type:"text_delta";delta:string} |{type:"done",messages:AgentMessage[]}
+export type StreamEvent={type:"text_delta";delta:string} |{type:"done",messages:AgentMessage}
 
 export interface Provider{
     name:string,
