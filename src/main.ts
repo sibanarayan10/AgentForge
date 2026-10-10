@@ -1,8 +1,9 @@
 import { config } from "dotenv";
 import { fileURLToPath } from "node:url";
-import Anthropic from "@anthropic-ai/sdk";
 import { parseArgs } from "node:util";
-import OpenAI from "openai";
+import { readTool } from "./tools/read.ts";
+import type { AgentMessage,Message } from "./type.ts";
+import { getProvider } from "./provider/index.ts";
 
 // load the .env next to the code, so mypi works from any folder
 config({
@@ -22,24 +23,38 @@ if(!values.prompt){
   process.exit(1);
 }
 
-const client=new Anthropic();
-const groqClient = new OpenAI({
-  apiKey: process.env.GROQ_API_KEY,
-  baseURL: "https://api.groq.com/openai/v1",
-});
+const provider=getProvider("groq");
+const messages:Message[]=[{role:"user",content:values.prompt}]
+const model=values.model;
+const tools=[readTool];
 
-const response = await groqClient.chat.completions.create({
-  messages: [
-    {
-      role: "user",
-      content: values.prompt,
-    },
-  ],
-  model: values.model,
-});
 
-console.log("GroqClient response :\n")
-console.log(response.choices[0].message?.content)
+const callModel=async():Promise<AgentMessage>=>{
+   for await(const event of provider.stream({messages,model,tools})){
+    if(event.type==="text_delta")
+      process.stdout.write(event.delta);
+    else{
+      const {usage,stopReason}=event.messages;
+      console.log("\n#############");
+      console.log("\nKhatam bhai...!! khatam")
+      return event.messages;
+    }
+   }
+   throw new Error("Stream ended without a  done event");
+}
+
+const first=await callModel();
+messages.push(first);
+
+if(first.stopReason=="tool_call"){
+  for(const block of first.content){
+      if(block.type!=="toolCall")continue;
+      console.log(`->${block.name}(${JSON.stringify(block.arguements)})`)
+      const result=await readTool.execute(block.arguements);
+      messages.push({role:"toolResult",id:block.id,name:block.name,content:result,isError:false});
+    }
+    messages.push(await callModel());
+}
 
 // const messages=await client.messages.create({
 //   max_tokens:1024,
