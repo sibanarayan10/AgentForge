@@ -34,33 +34,6 @@ const messages: Message[] = [{ role: "user", content: prompt }]
 const model = values.model;
 
 
-// const callModel = async (): Promise<AgentMessage> => {
-//   for await (const event of provider.stream({ messages, model, tools })) {
-//     if (event.type === "text_delta")
-//       process.stdout.write(event.delta);
-//     else {
-//       const { usage, stopReason } = event.messages;
-//       console.log("\n#############");
-//       console.log("\nKhatam bhai...!! khatam")
-//       return event.messages;
-//     }
-//   }
-//   throw new Error("Stream ended without a  done event");
-// }
-
-// const first = await callModel();
-// messages.push(first);
-
-// if (first.stopReason == "tool_call") {
-//   for (const block of first.content) {
-//     if (block.type !== "toolCall") continue;
-//     console.log(`->${block.name}(${JSON.stringify(block.arguements)})`)
-//     const result = await readTool.execute(block.arguements);
-//     messages.push({ role: "toolResult", id: block.id, name: block.name, content: result, isError: false });
-//   }
-//   messages.push(await callModel());
-// }
-
 await runAgent({
   messages, provider, model, tools, maxTurns: 10, system: "", emit(event) {
     if (event.type == "text") process.stdout.write(event.content);

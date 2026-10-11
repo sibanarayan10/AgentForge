@@ -1,43 +1,42 @@
 import OpenAI from "openai"
 import { ContentBlock, Message, Provider, StopReason, StreamOption, TokenUsage } from "../type.ts"
-import { ChatCompletionMessageParam } from "openai/resources"
 
 
 // our messages -> OpenAI's wire format
 function toOpenAI(messages: Message[]): OpenAI.ChatCompletionMessageParam[] {
-  return messages.map((m): OpenAI.ChatCompletionMessageParam => {
-    if (m.role === "user") return { role: "user", content: m.content };
-    if (m.role === "agent") {
-      const text = m.content.filter((b) => b.type === "text").map((b) => b.text).join("");
-      const calls = m.content.filter((b) => b.type === "toolCall");
-      return {
-        role: "assistant",
-        content: text || null,
-        // OpenAI wants the arguments as a JSON *string*
-        tool_calls: calls.length
-          ? calls.map((c) => ({
-              id: c.id,
-              type: "function" as const,
-              function: { name: c.name, arguments: JSON.stringify(c.arguements) },
-            }))
-          : undefined,
-      };
-    }
-    // toolResult -> its own message with role "tool"
-    return { role: "tool", tool_call_id: m.id, content: m.content };
-  });
+   return messages.map((m): OpenAI.ChatCompletionMessageParam => {
+      if (m.role === "user") return { role: "user", content: m.content };
+      if (m.role === "agent") {
+         const text = m.content.filter((b) => b.type === "text").map((b) => b.text).join("");
+         const calls = m.content.filter((b) => b.type === "toolCall");
+         return {
+            role: "assistant",
+            content: text || null,
+            // OpenAI wants the arguments as a JSON *string*
+            tool_calls: calls.length
+               ? calls.map((c) => ({
+                  id: c.id,
+                  type: "function" as const,
+                  function: { name: c.name, arguments: JSON.stringify(c.arguements) },
+               }))
+               : undefined,
+         };
+      }
+      // toolResult -> its own message with role "tool"
+      return { role: "tool", tool_call_id: m.id, content: m.content };
+   });
 }
 
 
-export const OpenAICompactProvider=(apiKey:string,name:string,model:string,baseUrl:string):Provider=>{
-   const client=new OpenAI({
-    apiKey,
-    baseURL:baseUrl
+export const OpenAICompactProvider = (apiKey: string, name: string, model: string, baseUrl: string): Provider => {
+   const client = new OpenAI({
+      apiKey,
+      baseURL: baseUrl
    })
 
    return {
       name,
-      defaultModel:model,
+      defaultModel: model,
       async *stream({ messages, model, system, tools = [] }) {
          const chat = toOpenAI(messages);
          const stream = await client.chat.completions.create({
@@ -49,7 +48,7 @@ export const OpenAICompactProvider=(apiKey:string,name:string,model:string,baseU
                ? tools.map((t) => ({
                   type: "function" as const,
                   function: { name: t.name, description: t.description, parameters: t.parameters },
-                  }))
+               }))
                : undefined,
          });
 
@@ -75,17 +74,13 @@ export const OpenAICompactProvider=(apiKey:string,name:string,model:string,baseU
          }
          const content: ContentBlock[] = text ? [{ type: "text", text }] : [];
          for (const c of calls) {
-         if (c) content.push({ type: "toolCall", id: c.id, name: c.name, arguements: c.args ? JSON.parse(c.args) : {} });
+            if (c) content.push({ type: "toolCall", id: c.id, name: c.name, arguements: c.args ? JSON.parse(c.args) : {} });
          }
          if (content.some((b) => b.type === "toolCall")) stopReason = "tool_call";
          yield { type: "done", messages: { role: "agent", content, usage, stopReason } };
-   },
- 
+      },
+
 
    }
 
-}
-
-export interface Nothing{
-   mes:OpenAI.Chat.Completions.ChatCompletionChunk
 }
