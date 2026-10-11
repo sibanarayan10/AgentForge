@@ -1,8 +1,12 @@
 import { config } from "dotenv";
 import { fileURLToPath } from "node:url";
-import Anthropic from "@anthropic-ai/sdk";
 import { parseArgs } from "node:util";
-import OpenAI from "openai";
+import { readTool } from "./tools/read.ts";
+import type { AgentMessage, Message } from "./type.ts";
+import { getProvider } from "./provider/index.ts";
+import { runAgent } from "./agent/loop.ts"
+import { tools } from "./tools/index.ts"
+import { run } from "node:test";
 
 // load the .env next to the code, so mypi works from any folder
 config({
@@ -10,39 +14,39 @@ config({
   quiet: true,
 });
 
-const{values}=parseArgs({
-  options:{
-    prompt:{type:"string",short:"p"},
-    model:{type:"string",default:"openai/gpt-oss-20b"}
-  }
+const { values, positionals } = parseArgs({
+  options: {
+    prompt: { type: "string", short: "p" },
+    model: { type: "string", default: "openai/gpt-oss-20b" }
+  },
+  allowPositionals: true
 })
 
-if(!values.prompt){
+const prompt = values.prompt || positionals.join(" ").trim();
+
+if (!prompt) {
   console.log("Give me a prompt,you naughty dude!!")
   process.exit(1);
 }
 
-const client=new Anthropic();
-const groqClient = new OpenAI({
-  apiKey: process.env.GROQ_API_KEY,
-  baseURL: "https://api.groq.com/openai/v1",
+const provider = getProvider("groq");
+const messages: Message[] = [{ role: "user", content: prompt }]
+const model = values.model;
+
+
+await runAgent({
+  messages, provider, model, tools, maxTurns: 10, system: "", emit(event) {
+    if (event.type == "text") process.stdout.write(event.content);
+    else if (event.type == "tool_start") console.log(`\nCalling  the tool ${event.call.name}`)
+    else if (event.type === "tool_end") {
+      const result = event.result;
+      console.log(`${event.isError ? "Some error occur while calling the tool" : result}`)
+
+    } else if (event.type == "turn_end") {
+      const { usage, stopReason } = event.message;
+      console.log(`\n\n ----${provider.name} ${model} ----input-token${usage.input} ----output-token${usage.output} ...${stopReason}`)
+    }
+  },
 });
 
-const response = await groqClient.chat.completions.create({
-  messages: [
-    {
-      role: "user",
-      content: values.prompt,
-    },
-  ],
-  model: values.model,
-});
 
-console.log("GroqClient response :\n")
-console.log(response.choices[0].message?.content)
-
-// const messages=await client.messages.create({
-//   max_tokens:1024,
-//   messages:[{content:values.prompt,role:"user"}],
-//   model:values.prompt
-// })
