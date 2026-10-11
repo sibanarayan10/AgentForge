@@ -3,7 +3,6 @@ import { ContentBlock, Message, Provider, StopReason } from "../type.ts";
 import { RawMessageStreamEvent } from "@anthropic-ai/sdk/resources";
 
 /**
- * 
  * @param message The generics message,which can be anything,starting from AgentMessage to the UserMessage
  * @returns Basically we are mapping it back to the `Anthropic` message param
  */
@@ -54,7 +53,6 @@ export const createAnthropic=():Provider=>{
                 }))
             })
 
-            let textContent="";
             const content:ContentBlock[]=[];
             let json="";
 
